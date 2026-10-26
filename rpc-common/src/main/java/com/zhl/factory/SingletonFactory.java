@@ -13,7 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class SingletonFactory {
     private static final Map<String, Object> OBJECT_MAP = new ConcurrentHashMap<>();
 
-    public SingletonFactory() {
+    private SingletonFactory() {
     }
 
     /**
@@ -24,17 +24,18 @@ public class SingletonFactory {
      */
     public static <T> T getInstance(Class<T> clazz) {
         if(clazz==null) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("Class cannot be null.");
         }
-        if(OBJECT_MAP.containsKey(clazz.toString())) {
-            return clazz.cast(OBJECT_MAP.get(clazz.toString()));
+        String key = clazz.getName();
+        if(OBJECT_MAP.containsKey(key)) {
+            return clazz.cast(OBJECT_MAP.get(key));
         }else {
-            return clazz.cast(OBJECT_MAP.computeIfAbsent(clazz.toString(), key -> {
+            return clazz.cast(OBJECT_MAP.computeIfAbsent(key, k -> {
                 try {
                     return clazz.getDeclaredConstructor().newInstance();
                 } catch (InstantiationException | NoSuchMethodException | InvocationTargetException |
                          IllegalAccessException e) {
-                    throw new RuntimeException(e);
+                    throw new RuntimeException("Failed to create singleton instance for class: " + clazz.getName(), e);
                 }
             }));
         }
