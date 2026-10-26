@@ -45,6 +45,7 @@ public class NettyRpcServerHandler extends ChannelInboundHandlerAdapter {
                 // 客户端发送正常请求
                 if (messageType==RpcConstants.REQUEST_TYPE){
                     RpcRequest rpcRequest = (RpcRequest) ((RpcMessage) msg).getData();
+                    // -----
                     Object result = rpcRequestHandler.handle(rpcRequest);
                     log.info(String.format("server get result: %s", result.toString()));
                     // 如果 channel 正常连接，且当前 I/O 线程正在执行写请求，返回对应的服务

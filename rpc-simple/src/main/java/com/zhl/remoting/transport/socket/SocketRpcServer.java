@@ -48,7 +48,7 @@ public class SocketRpcServer {
             // 建立钩子方法，在服务端关闭时，关闭线程池资源清除 zookeeper 上注册的服务
             CustomShutdownHook.getCustomShutdownHook().clearAll();
             Socket socket;
-            // 建立和客户端的连接
+            // 监听并建立和客户端的连接
             while ((socket=serverSocket.accept())!=null) {
                 log.info("client connected [{}]", socket.getInetAddress());
                 // 把真正处理 客户端的请求交给另一个线程 SocketRpcRequestHandlerRunnable.java 做

@@ -41,7 +41,7 @@ import java.util.concurrent.TimeUnit;
 public class NettyRpcServer {
     private final ServiceProvider serviceProvider = SingletonFactory.getInstance(ZkServiceProviderImpl.class);
     /**
-     * 初始化执行器组
+     * 初始化执行器组  网络 I/O 操作较多，线程数为 CPU * 2
      */
     private final EventExecutorGroup serviceHandlerGroup = new DefaultEventExecutorGroup(
         RuntimeUtil.cpus() * 2,
@@ -63,9 +63,9 @@ public class NettyRpcServer {
             serverBootstrap
                 .group(boss, worker)
                 .channel(NioServerSocketChannel.class)
-                // 启用 TCP_NODELAY，开启 Nagle 算法，尽可能多的传输数据，减少网络传输
+                // 启用 TCP_NODELAY，关闭 Nagle 算法，降低延迟
                 .childOption(ChannelOption.TCP_NODELAY, true)
-                // 开启 TCP 心跳机制
+                // 开启 TCP 心跳机制 --> TCP 保活机制
                 .childOption(ChannelOption.SO_KEEPALIVE, true)
                 //表示系统用于临时存放已完成三次握手的请求的队列的最大长度,如果连接建立频繁，服务器处理创建新连接较慢，可以适当调大这个参数
                 .option(ChannelOption.SO_BACKLOG, 128)

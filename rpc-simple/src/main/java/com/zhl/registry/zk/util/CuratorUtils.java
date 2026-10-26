@@ -6,17 +6,13 @@ import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.framework.imps.CuratorFrameworkState;
-import org.apache.curator.framework.recipes.cache.PathChildrenCache;
-import org.apache.curator.framework.recipes.cache.PathChildrenCacheListener;
+import org.apache.curator.framework.recipes.cache.*;
 import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.zookeeper.CreateMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.net.InetSocketAddress;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
@@ -41,7 +37,7 @@ public class CuratorUtils {
      */
     private static final String DEFAULT_ZOOKEEPER_ADDRESS = "127.0.0.1:2181";
     /**
-     * 添加已注册的持久节点
+     * 添加已注册的临时节点
      */
     private static final Set<String> REGISTERED_PATH_SET = ConcurrentHashMap.newKeySet();
     /**
@@ -68,6 +64,13 @@ public class CuratorUtils {
         String servicePath = ZK_REGISTER_ROOT_PATH + "/" + rpcServiceName;
         List<String> result = null;
         try {
+            /**
+             * 注册时机存在竞态窗口：
+             *      先执行 getChildren()，再执行 pathChildrenCache.start()。
+             *      如果在这两步之间恰好有节点增删，这次变化就会丢失（直到下一次子节点变动才被纠正）。
+             *      Curator 的 PathChildrenCache 无法做到原子地“读取并监听”，
+             *      如果想要更严密，可以改为 cache.start(StartMode.BUILD_INITIAL_CACHE)，或者改用 TreeCache。
+             */
             result = zkClient.getChildren().forPath(servicePath);
             SERVICE_ADDRESS_MAP.put(rpcServiceName, result);
             // 将当前 rpcServiceName 注册 Watch 机制
@@ -79,28 +82,49 @@ public class CuratorUtils {
     }
 
     /**
-     * 创建持久节点
+     * 注册 Watch 是为了让本地的 SERVICE_ADDRESS_MAP 缓存与 Zookeeper 中的真实服务列表保持同步
+     * Watch 是一个推拉结合模式：服务端推事件，客户端拉数据。
+     * @param zkClient
+     * @param rpcServiceName
+     * @throws Exception
+     */
+    private static void registerWatcher(CuratorFramework zkClient, String rpcServiceName) throws Exception {
+        String servicePath = ZK_REGISTER_ROOT_PATH + "/" + rpcServiceName;
+        PathChildrenCache pathChildrenCache = new PathChildrenCache(zkClient, servicePath, true);
+        PathChildrenCacheListener pathChildrenCacheListener = (curatorFramework, pathChildrenCacheEvent) -> {
+            // Watch 触发（只知道发生了改变，不知道变成了什么）从 getChildren() 获取最新列表
+            // 收到通知后重新 getChildren 拉取完整数据，这就是"推通知、拉数据"的配合。
+            List<String> serviceAddresses = curatorFramework.getChildren().forPath(servicePath);
+            SERVICE_ADDRESS_MAP.put(rpcServiceName, serviceAddresses);
+        };
+        pathChildrenCache.getListenable().addListener(pathChildrenCacheListener);
+        pathChildrenCache.start(PathChildrenCache.StartMode.BUILD_INITIAL_CACHE);
+    }
+
+    /**
+     *  创建临时节点
      * @param path  节点路径    尾部是 InetAddress.toString()
      */
-    public static void createPersistentNode(CuratorFramework zkClient, String path) {
+    public static void createEphemeralNode(CuratorFramework zkClient, String path) {
         try {
             if (REGISTERED_PATH_SET.contains(path) || zkClient.checkExists().forPath(path)!=null) {
                 log.info("The node already exists. The node is:[{}]", path);
             }else {
-                zkClient.create().creatingParentsIfNeeded().withMode(CreateMode.PERSISTENT).forPath(path);
+                zkClient.create().creatingParentsIfNeeded().withMode(CreateMode.EPHEMERAL).forPath(path);
                 log.info("The node was created successfully. The node is:[{}]", path);
             }
             REGISTERED_PATH_SET.add(path);
         } catch (Exception e) {
-            log.error("create persistent node for path [{}] fail", path);
+            log.error("create ephemeral node for path [{}] fail", path);
         }
     }
 
     /**
-     * 清除 zookeeper 中的持久节点
+     * 已修改为临时节点，会话结束后自动删除
      * @param zkClient
      * @param inetSocketAddress   根据注册节点尾部路径匹配
      */
+    @Deprecated
     public static void clearRegistry(CuratorFramework zkClient, InetSocketAddress inetSocketAddress) {
         REGISTERED_PATH_SET.stream().parallel().forEach(p->{
             try {
@@ -149,14 +173,4 @@ public class CuratorUtils {
         return zkClient;
     }
 
-    private static void registerWatcher(CuratorFramework zkClient, String rpcServiceName) throws Exception {
-        String servicePath = ZK_REGISTER_ROOT_PATH + "/" + rpcServiceName;
-        PathChildrenCache pathChildrenCache = new PathChildrenCache(zkClient, servicePath, true);
-        PathChildrenCacheListener pathChildrenCacheListener = (curatorFramework, pathChildrenCacheEvent) -> {
-            List<String> serviceAddresses = curatorFramework.getChildren().forPath(servicePath);
-            SERVICE_ADDRESS_MAP.put(rpcServiceName, serviceAddresses);
-        };
-        pathChildrenCache.getListenable().addListener(pathChildrenCacheListener);
-        pathChildrenCache.start();
-    }
 }

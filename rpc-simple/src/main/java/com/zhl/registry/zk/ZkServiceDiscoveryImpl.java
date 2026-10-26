@@ -4,7 +4,6 @@ import com.zhl.enums.LoadBalanceEnum;
 import com.zhl.enums.RpcErrorMessageEnum;
 import com.zhl.exception.RpcException;
 import com.zhl.extensions.ExtensionLoader;
-import com.zhl.loadbalance.ConsistentHashLoadBalance;
 import com.zhl.loadbalance.LoadBalance;
 import com.zhl.registry.ServiceDiscovery;
 import com.zhl.registry.zk.util.CuratorUtils;
@@ -36,6 +35,7 @@ public class ZkServiceDiscoveryImpl implements ServiceDiscovery {
     public InetSocketAddress lookupService(RpcRequest rpcRequest) {
         String rpcServiceName = rpcRequest.getRpcServiceName();
         CuratorFramework zkClient = CuratorUtils.getZkClient();
+        // 使用 Zookeeper 获取 当前服务名下的所有服务节点，并注册 Watcher
         List<String> serviceAddresses = CuratorUtils.getChildrenNodes(zkClient, rpcServiceName);
         if (CollectionUtil.isEmpty(serviceAddresses)) {
             throw new RpcException(RpcErrorMessageEnum.SERVICE_CAN_NOT_BE_FOUND, rpcServiceName);
