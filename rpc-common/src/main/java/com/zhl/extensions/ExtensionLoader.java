@@ -2,17 +2,14 @@ package com.zhl.extensions;
 
 import com.zhl.utils.StringUtil;
 import lombok.extern.slf4j.Slf4j;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -24,13 +21,15 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 public class ExtensionLoader<T> {
     private static final String SERVICE_DIRECTORY = "META-INF/extensions/";
+    /**
+     * 缓存了该 ExtensionLoader 加载的扩展名与扩展实现对象之间的映射关系。
+     */
     private final Map<String, Holder<Object>> cacheInstances = new ConcurrentHashMap<>();
     private static final Map<Class<?>, ExtensionLoader<?>> EXTENSION_LOADERS = new ConcurrentHashMap<>();
     private static final Map<Class<?>, Object> EXTENSION_INSTANCES = new ConcurrentHashMap<>();
     private final Class<?> type;
     /**
-     * 存储所有的扩展类
-     * 存储名称对应的扩展类
+     * 缓存了该 ExtensionLoader 加载的扩展名与扩展实现对象之间的映射关系。
      */
     private final Holder<Map<String, Class<?>>> cachedClasses = new Holder<>();
 
@@ -122,7 +121,7 @@ public class ExtensionLoader<T> {
     }
 
     /**
-     * 加载扩展类
+     * 加载扩展类<p>
      * 目前只有一种存放的策略，读取 META-INF/extensions<br>
      * 1. 对 SPI 注解进行解析。注意在我的SPI 中没有任何属性，只是标志的作用，所以不必解析 SPI ，交由 {@link ExtensionLoader#getExtensionLoader}解析即可<br>
      * 2. 加载指定文件夹中的配置文件

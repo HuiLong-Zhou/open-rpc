@@ -13,7 +13,7 @@ import java.util.function.Predicate;
 
 /**
  * <p>
- *  基于 JDK 动态代理 实际处理 RpcRequest 的 Handler
+ *  通过反射处理 RpcRequest 的 Handler
  * @author zhl
  * @since 2024-07-15 17:16
  */

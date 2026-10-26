@@ -33,7 +33,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 public class ZkServiceProviderImpl implements ServiceProvider {
     /**
-     * 服务发现
+     * 服务注册
      */
     private final ServiceRegistry serviceRegistry;
     /**

@@ -49,6 +49,7 @@ public class RpcClientProxy implements InvocationHandler {
     }
 
     public <T>T getProxy(Class<T> clazz) {
+        // this ===> 重写 InvocationHandler 的 invoke 方法
         return (T) Proxy.newProxyInstance(clazz.getClassLoader(), new Class<?>[]{clazz}, this);
     }
 
@@ -69,7 +70,8 @@ public class RpcClientProxy implements InvocationHandler {
         RpcResponse<Object> rpcResponse = null;
         if(rpcRequestTransport instanceof NettyRpcClient) {
             // 使用 CompletableFuture 进行优化，异步处理
-            CompletableFuture<RpcResponse<Object>> completableFuture = (CompletableFuture<RpcResponse<Object>>) rpcRequestTransport.sendRpcRequest(rpcRequest);
+            CompletableFuture<RpcResponse<Object>> completableFuture =
+                (CompletableFuture<RpcResponse<Object>>) rpcRequestTransport.sendRpcRequest(rpcRequest);
             // 同步阻塞接受结果
             rpcResponse = completableFuture.get();
         }
